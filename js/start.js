@@ -122,24 +122,26 @@ PhaserGame.prototype = {
             (Math.round(this.joystick.properties.rotation * 100) / 100));
         this.pushText.setText("Joystick: " + this.joystick.properties.inUse + 
             "\nButton: " + this.button.isDown);
+    },
+    
+    Bullet: function(game, key) {
+    
+        Phaser.Sprite.call(this, game, 0, 0, key);
+        
+        this.anchor.set(0.5);
+        
+        this.checkWorldBounds = true;
+        this.outOfBoundsKill = true;
+        this.exists = false;
+        
+        this.scaleSpeed = 0;
     }
+        
 };
 
 ////////////////////////////////////////////////////////////////////////////
 // Bullet class
 ////////////////////////////////////////////////////////////////////////////
-PhaserGame.prototype.Bullet = function(game, key) {
-    
-    Phaser.Sprite.call(this, game, 0, 0, key);
-    
-    this.anchor.set(0.5);
-    
-    this.checkWorldBounds = true;
-    this.outOfBoundsKill = true;
-    this.exists = false;
-    
-    this.scaleSpeed = 0;
-};
 
 PhaserGame.prototype.Bullet.prototype = Object.create(Phaser.Sprite.prototype);
 PhaserGame.prototype.Bullet.prototype.constructor = PhaserGame.Bullet;
