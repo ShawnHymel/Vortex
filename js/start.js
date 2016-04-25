@@ -8,6 +8,61 @@
  
 var game = new Phaser.Game(500, 500, Phaser.CANVAS);
 
+// Game object to hold parameters and helper objects
+var Vortex = {
+    debug: false,
+    center: new Phaser.Point(250, 200),
+    bulletSpeed: -0.008,
+    maxBullets: 5,
+    fireRate: 100,
+    maxEnemies: 16,
+    gliderSpeed: 0.002
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Flyer class
+////////////////////////////////////////////////////////////////////////////////
+
+// Add the Flyer class constructor to the game state's prototype
+Flyer = function(game, key) {
+    
+    Phaser.Sprite.call(this, game, 0, 0, key);
+    
+    this.anchor.set(0.5);
+    
+    this.checkWorldBounds = true;
+    this.outOfBoundsKill = true;
+    this.exists = false;
+    
+    this.scaleSpeed = 0;
+};
+
+// Inherit properties from Sprite class
+Flyer.prototype = Object.create(Phaser.Sprite.prototype);
+Flyer.prototype.constructor = Flyer
+
+// Fire method
+Flyer.prototype.fire = function(source, speed) {
+    this.pivot.x = source.pivot.x;
+    this.pivot.y = source.pivot.y;
+    this.angle = source.angle;
+    this.speed = speed;
+    this.scale.x = source.scale.x;
+    this.scale.y = source.scale.y;
+    
+    this.reset(source.x, source.y);
+};
+
+// Update method
+Flyer.prototype.update = function() {
+    this.scale.x += this.speed;
+    this.scale.y += this.speed;
+
+    if ((this.scale.x <= 0.25) || (this.scale.x > 1)) {
+        this.kill();
+    }
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 // Game State Definition
 ////////////////////////////////////////////////////////////////////////////////
@@ -15,10 +70,11 @@ var game = new Phaser.Game(500, 500, Phaser.CANVAS);
 // Constructor
 var PhaserGame = function() {
     
-    // Game variables
+    // State members
     this.debug = false;
-    this.center = new Phaser.Point(250, 200);
+    this.center = Vortex.center;
     this.player = null;
+    this.nextFire = 0;
 };
 
 // Prototype
@@ -34,6 +90,7 @@ PhaserGame.prototype = {
         this.load.image('vortex', 'img/the_vortex.png');
         this.load.image('ship', 'img/player.png');
         this.load.image('bullet', 'img/bullet.png');
+        this.load.image('glider', 'img/glider.png');
     },
     
     create: function() {
@@ -45,25 +102,42 @@ PhaserGame.prototype = {
 		this.scale.pageAlignHorizontally = true;
 		this.scale.pageAlignVertically = true;
         
-        this.physics.startSystem(Phaser.Physics.ARCADE);
+        game.physics.startSystem(Phaser.Physics.ARCADE);
         
         // Add background
         this.vortex = this.add.sprite(this.center.x, this.center.y, 'vortex');
         this.vortex.anchor.set(0.5);
         
-        // Add the player's weapon
-        this.weapon = new Weapon(this.game);
-        
+        // Add the hero
         this.player = this.add.sprite(250, 200, 'ship');
         this.player.scale.setTo(1, 1);
         this.player.anchor.set(0.5);
         this.player.pivot.x = -150;
-        this.player.angle = 90;
+        this.player.angle = 90;  
+
+        // Create our group of bullets
+        this.bullets = game.add.group();
+        this.bullets.enableBody = true;
+        this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
+        for (var i = 0; i < Vortex.maxBullets; i++) {
+            this.bullets.add(new Flyer(game, 'bullet'), true);
+        }
+        this.bullets.setAll('alive', false);
+
+        // Create our group of enemies
+        this.enemies = game.add.group();
+        this.enemies.enableBody = true;
+        this.enemies.physicsBodyType = Phaser.Physics.ARCADE;
+        for (var i = 0; i < Vortex.maxEnemies; i++) {
+            this.enemies.add(new Flyer(game, 'glider'), true);
+        }
         
-        var style = {font: '14px Arial', 
-                     fill: '#ffffff', 
-                     align: 'left', 
-                     stroke: '#000000'};
+        // Set the group of enemies as an entity that pivots around center
+        this.enemies.setAll('x', this.center.x);
+        this.enemies.setAll('y', this.center.y);
+        this.enemies.setAll('pivot.x', -150);
+        this.enemies.setAll('angle', 0);
+        this.enemies.setAll('alive', false);
         
         // Only add the virtual gamepad if not on desktop
         if (!Phaser.Device.desktop) {
@@ -74,11 +148,21 @@ PhaserGame.prototype = {
         
         // Debug text
         if (this.debug) {
+            var style = {font: '14px Arial', 
+                         fill: '#ffffff', 
+                         align: 'left', 
+                         stroke: '#000000'};
             this.directionText = this.add.text(20, 20, '', style);
             this.rectangularText = this.add.text(140, 20, '', style);
             this.polarText = this.add.text(260, 20, '', style);
             this.pushText = this.add.text(380, 20, '', style);
         }
+        
+        // Set a timer to fire off the first enemy
+        var that = this;
+        setTimeout( function() {
+            that.fireEnemy();
+        }, 1000);
     },
     
     update: function() {
@@ -103,14 +187,61 @@ PhaserGame.prototype = {
         // Fire lasers!
         if (Phaser.Device.desktop) {
             if (game.input.activePointer.leftButton.isDown) {
-                this.weapon.fire(this.player);
+                this.fireWeapon();
             }
         } else {
             if (this.button.isDown) {
-                this.weapon.fire(this.player);
+                this.fireWeapon();
             }
         }
         
+        // Collision detection
+        game.physics.arcade.overlap(this.bullets,
+                                    this.enemies, 
+                                    this.enemyHitHandler,
+                                    null,
+                                    this);
+        
+    },
+    
+    fireWeapon: function() {
+        
+        // Shoot bullets at fire rate if we have some available
+        if ((this.bullets.countDead() > 0) && 
+            (game.time.time > this.nextFire)) {
+            var bullet = this.bullets.getFirstDead(false);
+            bullet.scale.setTo(1);
+            bullet.fire(this.player, Vortex.bulletSpeed);
+            
+            // Set the next time we can fire a bullet
+            this.nextFire = game.time.time + Vortex.fireRate;
+        }
+    },
+    
+    fireEnemy: function() {
+        
+        // If we haven't reached max enemies, fire in random direction
+        if (this.enemies.countDead() > 0) {
+            var enemy = this.enemies.getFirstDead(false);
+            enemy.angle = game.rnd.angle();
+            enemy.scale.setTo(0.25);
+            enemy.fire(enemy, Vortex.gliderSpeed);
+        }
+        
+        // Set another timer to fire off the next enemy
+        var that = this;
+        setTimeout( function() {
+            that.fireEnemy();
+        }, 1000);
+    },
+    
+    enemyHitHandler: function (bullet, enemy) {
+        
+        // When a bullet hits an enemy, kill them both
+        bullet.kill();
+        enemy.kill();
+        
+        console.log("Enemy hit");
     },
  
     updateDebugText: function() {
@@ -129,93 +260,6 @@ PhaserGame.prototype = {
         this.pushText.setText("Joystick: " + this.joystick.properties.inUse + 
             "\nButton: " + this.button.isDown);
     },
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// Bullet class
-////////////////////////////////////////////////////////////////////////////////
-
-// Add the Bullet class constructor to the game state's prototype
-Bullet = function(game, key) {
-    
-    Phaser.Sprite.call(this, game, 0, 0, key);
-    
-    this.anchor.set(0.5);
-    
-    this.checkWorldBounds = true;
-    this.outOfBoundsKill = true;
-    this.exists = false;
-    
-    this.scaleSpeed = 0;
-};
-
-// Inherit properties from Sprite class
-Bullet.prototype = Object.create(Phaser.Sprite.prototype);
-Bullet.prototype.constructor = Bullet
-
-// Fire method
-Bullet.prototype.fire = function(source, speed, scaleSpeed) {
-    this.pivot.x = source.pivot.x;
-    this.pivot.y = source.pivot.y;
-    this.angle = source.angle;
-    this.scaleSpeed = scaleSpeed;
-    
-    this.reset(source.x, source.y);
-    this.scale.set(1);
-};
-
-// Update method
-Bullet.prototype.update = function() {
-    this.scale.x += this.scaleSpeed;
-    this.scale.y += this.scaleSpeed;
-
-    if (this.scale.x <= 0.25) {
-        this.kill();
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////
-// Weapon class
-////////////////////////////////////////////////////////////////////////////
-
-// Constructor
-Weapon = function(game) {
-    
-    Phaser.Group.call(this, game, game.world, 'Single Bullet', false, true, 
-        Phaser.Physics.ARCADE);
-        
-    this.nextFire = 0;
-    this.bulletSpeed = 10;
-    this.fireRate = 100;
-    this.maxBullets = 10;
-    
-    // Add bullets to group and set all to dead
-    for (var i = 0; i < 64; i++) {
-        this.add(new Bullet(game, 'bullet'), true);
-    }
-    this.setAll('alive', false);
-    
-    return this;
-};
-
-// Inherit properties from Group class
-Weapon.prototype = Object.create(Phaser.Group.prototype);
-Weapon.prototype.constructor = Weapon;
-
-// Fire method - shoot bullets from the player
-Weapon.prototype.fire = function(source) {
-    
-    if ((this.game.time.time < this.nextFire) || 
-        (this.countLiving() + 1 > this.maxBullets)) {
-        return;
-    }
-    
-    var x = source.x;
-    var y = source.y;
-    
-    this.getFirstExists(false).fire(source, this.bulletSpeed, -.008);
-    
-    this.nextFire = this.game.time.time + this.fireRate;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
