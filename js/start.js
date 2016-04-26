@@ -14,9 +14,12 @@ var Vortex = {
     center: new Phaser.Point(250, 200),
     bulletSpeed: -0.008,
     maxBullets: 5,
+    maxEnemyBullets: 5,
     fireRate: 100,
-    maxEnemies: 16,
-    gliderSpeed: 0.002
+    maxGliders: 16,
+    maxButterflies: 16,
+    gliderSpeed: 0.002,
+    butterflySpeed: 0.001
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,6 +94,8 @@ PhaserGame.prototype = {
         this.load.image('ship', 'img/player.png');
         this.load.image('bullet', 'img/bullet.png');
         this.load.image('glider', 'img/glider.png');
+        this.load.image('butterfly', 'img/butterfly.png');
+        this.load.image('enemy_bullet', 'img/enemy_bullet.png');
     },
     
     create: function() {
@@ -124,20 +129,44 @@ PhaserGame.prototype = {
         }
         this.bullets.setAll('alive', false);
 
-        // Create our group of enemies
-        this.enemies = game.add.group();
-        this.enemies.enableBody = true;
-        this.enemies.physicsBodyType = Phaser.Physics.ARCADE;
-        for (var i = 0; i < Vortex.maxEnemies; i++) {
-            this.enemies.add(new Flyer(game, 'glider'), true);
+        // Create our group of glider enemies
+        this.gliders = game.add.group();
+        this.gliders.enableBody = true;
+        this.gliders.physicsBodyType = Phaser.Physics.ARCADE;
+        for (var i = 0; i < Vortex.maxGliders; i++) {
+            this.gliders.add(new Flyer(game, 'glider'), true);
         }
         
         // Set the group of enemies as an entity that pivots around center
-        this.enemies.setAll('x', this.center.x);
-        this.enemies.setAll('y', this.center.y);
-        this.enemies.setAll('pivot.x', -150);
-        this.enemies.setAll('angle', 0);
-        this.enemies.setAll('alive', false);
+        this.gliders.setAll('x', this.center.x);
+        this.gliders.setAll('y', this.center.y);
+        this.gliders.setAll('pivot.x', -150);
+        this.gliders.setAll('angle', 0);
+        this.gliders.setAll('alive', false);
+        
+        // Create our group of butterfly enemies
+        this.butterflies = game.add.group();
+        this.butterflies.enableBody = true;
+        this.butterflies.physicsBodyType = Phaser.Physics.ARCADE;
+        for (var i = 0; i < Vortex.maxGliders; i++) {
+            this.butterflies.add(new Flyer(game, 'butterfly'), true);
+        }
+        
+        // Set the group of enemies as an entity that pivots around center
+        this.butterflies.setAll('x', this.center.x);
+        this.butterflies.setAll('y', this.center.y);
+        this.butterflies.setAll('pivot.x', -150);
+        this.butterflies.setAll('angle', 0);
+        this.butterflies.setAll('alive', false);
+        
+        // Create our group of enemy bullets
+        this.enemyBullets = game.add.group();
+        this.enemyBullets.enableBody = true;
+        this.enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
+        for (var i = 0; i < Vortex.maxEnemyBullets; i++) {
+            this.enemyBullets.add(new Flyer(game, 'enemy_bullet'), true);
+        }
+        this.enemyBullets.setAll('alive', false);
         
         // Only add the virtual gamepad if not on desktop
         if (!Phaser.Device.desktop) {
@@ -158,11 +187,16 @@ PhaserGame.prototype = {
             this.pushText = this.add.text(380, 20, '', style);
         }
         
-        // Set a timer to fire off the first enemy
+        // Set a timer to fire off the first glider
         var that = this;
         setTimeout( function() {
-            that.fireEnemy();
+            that.fireEnemy(that.gliders, Vortex.gliderSpeed);
         }, 1000);
+        
+        // Set a timer to fire off the first butterfly
+        setTimeout( function() {
+            that.fireEnemy(that.butterflies, Vortex.butterflySpeed);
+        }, 2000);
     },
     
     update: function() {
@@ -197,11 +231,15 @@ PhaserGame.prototype = {
         
         // Collision detection
         game.physics.arcade.overlap(this.bullets,
-                                    this.enemies, 
+                                    this.gliders, 
                                     this.enemyHitHandler,
                                     null,
                                     this);
-        
+        game.physics.arcade.overlap(this.bullets,
+                                    this.butterflies, 
+                                    this.enemyHitHandler,
+                                    null,
+                                    this);
     },
     
     fireWeapon: function() {
@@ -218,21 +256,21 @@ PhaserGame.prototype = {
         }
     },
     
-    fireEnemy: function() {
+    fireEnemy: function(enemies, speed) {
         
         // If we haven't reached max enemies, fire in random direction
-        if (this.enemies.countDead() > 0) {
-            var enemy = this.enemies.getFirstDead(false);
+        if (enemies.countDead() > 0) {
+            var enemy = enemies.getFirstDead(false);
             enemy.angle = game.rnd.angle();
             enemy.scale.setTo(0.25);
-            enemy.fire(enemy, Vortex.gliderSpeed);
+            enemy.fire(enemy, speed);
         }
         
         // Set another timer to fire off the next enemy
         var that = this;
         setTimeout( function() {
-            that.fireEnemy();
-        }, 1000);
+            that.fireEnemy(enemies, speed);
+        }, 2000);
     },
     
     enemyHitHandler: function (bullet, enemy) {
