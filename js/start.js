@@ -8,10 +8,12 @@
  
 var game = new Phaser.Game(500, 500, Phaser.CANVAS);
 
-// Game object to hold parameters and helper objects
+// Game object to hold parameters
 var Vortex = {
     debug: false,
     center: new Phaser.Point(250, 200),
+    lives: 3,
+    playerDistance: 157,
     bulletSpeed: -0.008,
     enemyBulletSpeed: 0.004,
     maxBullets: 5,
@@ -28,9 +30,12 @@ var Vortex = {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Add the Flyer class constructor to the game state's prototype
-Flyer = function(game, key) {
+var Flyer = function(game, key, onDeathHandler, context = null) {
     
     Phaser.Sprite.call(this, game, 0, 0, key);
+    
+    this.owner = context;
+    this.onDeathHandler = onDeathHandler;
     
     this.anchor.set(0.5);
     
@@ -63,6 +68,9 @@ Flyer.prototype.update = function() {
     this.scale.y += this.speed;
 
     if ((this.scale.x <= 0.25) || (this.scale.x > 1)) {
+        if ((this.alive) && (this.onDeathHandler !== null)) {
+            this.onDeathHandler(this.owner);
+        }
         this.kill();
     }
 };
@@ -91,7 +99,7 @@ PhaserGame.prototype = {
         this.load.spritesheet('gamepad', 
             'img/gamepad/gamepad_spritesheet.png', 100, 100);
         
-        this.load.image('vortex', 'img/the_vortex.png');
+        this.load.spritesheet('vortex', 'img/the_vortex.png', 300, 300, 2);
         this.load.image('ship', 'img/player.png');
         this.load.image('bullet', 'img/bullet.png');
         this.load.image('glider', 'img/glider.png');
@@ -113,12 +121,14 @@ PhaserGame.prototype = {
         // Add background
         this.vortex = this.add.sprite(this.center.x, this.center.y, 'vortex');
         this.vortex.anchor.set(0.5);
+        this.vortex.frame = 0;
         
         // Add the hero
         this.player = this.add.sprite(250, 200, 'ship');
+        game.physics.arcade.enable(this.player);
         this.player.scale.setTo(1, 1);
         this.player.anchor.set(0.5);
-        this.player.pivot.x = -150;
+        this.player.pivot.x = -1 * Vortex.playerDistance;
         this.player.angle = 90;  
 
         // Create our group of bullets
@@ -126,7 +136,7 @@ PhaserGame.prototype = {
         this.bullets.enableBody = true;
         this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
         for (var i = 0; i < Vortex.maxBullets; i++) {
-            this.bullets.add(new Flyer(game, 'bullet'), true);
+            this.bullets.add(new Flyer(game, 'bullet', null, this), true);
         }
         this.bullets.setAll('alive', false);
 
@@ -135,7 +145,8 @@ PhaserGame.prototype = {
         this.gliders.enableBody = true;
         this.gliders.physicsBodyType = Phaser.Physics.ARCADE;
         for (var i = 0; i < Vortex.maxGliders; i++) {
-            this.gliders.add(new Flyer(game, 'glider'), true);
+            this.gliders.add(new Flyer(game, 'glider', this.loseLife, this), 
+                                                                        true);
         }
         
         // Set the group of enemies as an entity that pivots around center
@@ -150,7 +161,8 @@ PhaserGame.prototype = {
         this.butterflies.enableBody = true;
         this.butterflies.physicsBodyType = Phaser.Physics.ARCADE;
         for (var i = 0; i < Vortex.maxGliders; i++) {
-            this.butterflies.add(new Flyer(game, 'butterfly'), true);
+            this.butterflies.add(new Flyer(game, 'butterfly', this.loseLife, 
+                                                                this), true);
         }
         
         // Set the group of enemies as an entity that pivots around center
@@ -165,9 +177,28 @@ PhaserGame.prototype = {
         this.enemyBullets.enableBody = true;
         this.enemyBullets.physicsBodyType = Phaser.Physics.ARCADE;
         for (var i = 0; i < Vortex.maxEnemyBullets; i++) {
-            this.enemyBullets.add(new Flyer(game, 'enemy_bullet'), true);
+            this.enemyBullets.add(new Flyer(game, 'enemy_bullet', null, this), 
+                                                                        true);
         }
         this.enemyBullets.setAll('alive', false);
+        
+        // Add life sprites to the top of the screen
+        this.lives = Vortex.lives;
+        this.lifeSprites = game.add.group();
+        for (var i = 0; i < this.lives; i++) {
+            this.lifeSprites.create(10 + (25 * i), 40, 'ship');
+            var child = this.lifeSprites.getChildAt(i);
+            child.anchor.set(1, 1);
+            child.angle = 180;
+        }
+        
+        // Style for text
+        var style = {font: '24px Verdana',
+                     fill: '#ffffff',
+                     align: 'left'};
+                     
+        // Add lives and points text
+        this.add.text(10, 10, 'Lives', style);
         
         // Only add the virtual gamepad if not on desktop
         if (!Phaser.Device.desktop) {
@@ -178,14 +209,14 @@ PhaserGame.prototype = {
         
         // Debug text
         if (this.debug) {
-            var style = {font: '14px Arial', 
+            var dStyle = {font: '14px Arial', 
                          fill: '#ffffff', 
                          align: 'left', 
                          stroke: '#000000'};
-            this.directionText = this.add.text(20, 20, '', style);
-            this.rectangularText = this.add.text(140, 20, '', style);
-            this.polarText = this.add.text(260, 20, '', style);
-            this.pushText = this.add.text(380, 20, '', style);
+            this.directionText = this.add.text(20, 20, '', dStyle);
+            this.rectangularText = this.add.text(140, 20, '', dStyle);
+            this.polarText = this.add.text(260, 20, '', dStyle);
+            this.pushText = this.add.text(380, 20, '', dStyle);
         }
         
         // Set a timer to fire off the first glider
@@ -218,7 +249,8 @@ PhaserGame.prototype = {
             if (this.input.activePointer.isMouse) {
                 var mousePoint = new Phaser.Point(this.input.mousePointer.x,
                                                   this.input.mousePointer.y);
-                this.player.rotation = Phaser.Point.angle(mousePoint, this.center);
+                this.player.rotation = Phaser.Point.angle(mousePoint, 
+                                                                this.center);
             }
         } else {
             if (this.joystick.properties.distance !== 0) {
@@ -251,6 +283,11 @@ PhaserGame.prototype = {
         game.physics.arcade.overlap(this.bullets,
                                     this.enemyBullets,
                                     this.bulletHitHandler,
+                                    null,
+                                    this);
+        game.physics.arcade.overlap(this.player,
+                                    this.enemyBullets,
+                                    this.playerHitHandler,
                                     null,
                                     this);
     },
@@ -315,7 +352,7 @@ PhaserGame.prototype = {
         }, 2000);
     },
     
-    enemyHitHandler: function (bullet, enemy) {
+    enemyHitHandler: function(bullet, enemy) {
         
         // When a bullet hits an enemy, kill them both
         bullet.kill();
@@ -324,13 +361,47 @@ PhaserGame.prototype = {
         console.log("Enemy hit");
     },
     
-    bulletHitHandler: function (bullet, enemyBullet) {
+    bulletHitHandler: function(bullet, enemyBullet) {
         
         // This is what it's like when bullets collide
         bullet.kill();
         enemyBullet.kill();
         
         console.log("Bullet hit");
+    },
+    
+    playerHitHandler: function(player, enemyBullet) {
+        
+        // The player gets hit
+        enemyBullet.kill();
+        
+        this.loseLife();
+    },
+    
+    loseLife: function(owner = this) {
+        
+        // Flash the Vortex
+        owner.vortex.frame = 1;
+        setTimeout( function() {
+            owner.vortex.frame = 0;
+        }, 150);
+        
+        console.log("Ouch");
+        
+        if (owner.lives === 0) {
+            console.log("You're dead, sucka");
+            owner.lives = 0;
+            game.state.start('Game');
+            return;
+        };
+        
+        // Remove life from sprites
+        if (owner.lives > 0) {
+            owner.lifeSprites.getChildAt(owner.lives - 1).kill();
+        }
+        
+        // Decrement lives
+        owner.lives--;
     },
  
     updateDebugText: function() {
