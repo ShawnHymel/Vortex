@@ -13,6 +13,7 @@ var Vortex = {
     debug: false,
     center: new Phaser.Point(250, 200),
     bulletSpeed: -0.008,
+    enemyBulletSpeed: 0.004,
     maxBullets: 5,
     maxEnemyBullets: 5,
     fireRate: 100,
@@ -67,7 +68,7 @@ Flyer.prototype.update = function() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Game State Definition
+// Main Game State
 ////////////////////////////////////////////////////////////////////////////////
 
 // Constructor
@@ -197,6 +198,13 @@ PhaserGame.prototype = {
         setTimeout( function() {
             that.fireEnemy(that.butterflies, Vortex.butterflySpeed);
         }, 2000);
+        
+        // Set a timer to have a random butterfly shoot
+        setTimeout( function() {
+            that.enemyShoot(that.butterflies, 
+                            that.enemyBullets, 
+                            Vortex.enemyBulletSpeed);
+        }, 1000);
     },
     
     update: function() {
@@ -240,6 +248,11 @@ PhaserGame.prototype = {
                                     this.enemyHitHandler,
                                     null,
                                     this);
+        game.physics.arcade.overlap(this.bullets,
+                                    this.enemyBullets,
+                                    this.bulletHitHandler,
+                                    null,
+                                    this);
     },
     
     fireWeapon: function() {
@@ -247,7 +260,7 @@ PhaserGame.prototype = {
         // Shoot bullets at fire rate if we have some available
         if ((this.bullets.countDead() > 0) && 
             (game.time.time > this.nextFire)) {
-            var bullet = this.bullets.getFirstDead(false);
+            var bullet = this.bullets.getFirstDead();
             bullet.scale.setTo(1);
             bullet.fire(this.player, Vortex.bulletSpeed);
             
@@ -260,7 +273,7 @@ PhaserGame.prototype = {
         
         // If we haven't reached max enemies, fire in random direction
         if (enemies.countDead() > 0) {
-            var enemy = enemies.getFirstDead(false);
+            var enemy = enemies.getFirstDead();
             enemy.angle = game.rnd.angle();
             enemy.scale.setTo(0.25);
             enemy.fire(enemy, speed);
@@ -273,6 +286,35 @@ PhaserGame.prototype = {
         }, 2000);
     },
     
+    enemyShoot: function(enemies, bullets, speed) {
+        
+        // If there's an enemy on screen and bullets available, fire!
+        if ((enemies.countLiving() > 0) && (bullets.countDead() > 0)) {
+            
+            // Create a list of all the enemies that are on screen
+            var indArray = [];
+            enemies.forEachAlive( function(child) {
+                indArray.push(enemies.getChildIndex(child));
+            }, this);
+            
+            // Choose one of those enemies at random
+            var ind = game.rnd.between(0, indArray.length - 1);
+            var enemy = enemies.getChildAt(indArray[ind]);
+            
+            // Have that random enemy shoot a bullet
+            var bullet = bullets.getFirstDead();
+            bullet.angle = enemy.angle;
+            bullet.scale.setTo(enemy.scale);
+            bullet.fire(enemy, speed);
+        }
+        
+        // Set another timer to shoot again
+        var that = this;
+        setTimeout( function() {
+            that.enemyShoot(enemies, bullets, speed);
+        }, 2000);
+    },
+    
     enemyHitHandler: function (bullet, enemy) {
         
         // When a bullet hits an enemy, kill them both
@@ -280,6 +322,15 @@ PhaserGame.prototype = {
         enemy.kill();
         
         console.log("Enemy hit");
+    },
+    
+    bulletHitHandler: function (bullet, enemyBullet) {
+        
+        // This is what it's like when bullets collide
+        bullet.kill();
+        enemyBullet.kill();
+        
+        console.log("Bullet hit");
     },
  
     updateDebugText: function() {
