@@ -22,7 +22,15 @@ var Vortex = {
     maxGliders: 16,
     maxButterflies: 16,
     gliderSpeed: 0.002,
-    butterflySpeed: 0.001
+    butterflySpeed: 0.001,
+    gliderPoints: 100,
+    butterflyPoints: 100,
+    maxPoints: 999900,
+    firstGliderSpawn: 2000,     // Tims (ms) to spawn first Glider
+    firstButterflySpawn: 10000, // Time (ms) to spawn first Butterfly
+    initialSpawnRate: 2000,     // Time (ms) to continually spawn enemies
+    spawnDelayDecrement: 20,    // Time (ms) decrease between enemy spawns
+    minSpawnRate: 300           // Minimum time (ms) between spawns
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -87,6 +95,7 @@ var PhaserGame = function() {
     this.center = Vortex.center;
     this.player = null;
     this.nextFire = 0;
+    this.score = 0;
 };
 
 // Prototype
@@ -155,6 +164,7 @@ PhaserGame.prototype = {
         this.gliders.setAll('pivot.x', -150);
         this.gliders.setAll('angle', 0);
         this.gliders.setAll('alive', false);
+        this.gliders.nextSpawn = Vortex.initialSpawnRate;
         
         // Create our group of butterfly enemies
         this.butterflies = game.add.group();
@@ -171,6 +181,7 @@ PhaserGame.prototype = {
         this.butterflies.setAll('pivot.x', -150);
         this.butterflies.setAll('angle', 0);
         this.butterflies.setAll('alive', false);
+        this.butterflies.nextSpawn = Vortex.initialSpawnRate;
         
         // Create our group of enemy bullets
         this.enemyBullets = game.add.group();
@@ -193,12 +204,18 @@ PhaserGame.prototype = {
         }
         
         // Style for text
-        var style = {font: '24px Verdana',
+        this.style = {font: '24px Helvetica',
                      fill: '#ffffff',
                      align: 'left'};
+        this.scoreStyle = {font: '24px Courier',
+                           fill: '#ffffff',
+                           align: 'right'};
                      
         // Add lives and points text
-        this.add.text(10, 10, 'Lives', style);
+        this.add.text(10, 10, 'Lives', this.style);
+        this.add.text(450, 10, 'Score', this.style).anchor.set(1, 0);
+        this.scoreText = this.add.text(450, 35, '0', this.scoreStyle);
+        this.scoreText.anchor.set(1, 0);
         
         // Only add the virtual gamepad if not on desktop
         if (!Phaser.Device.desktop) {
@@ -223,12 +240,12 @@ PhaserGame.prototype = {
         var that = this;
         setTimeout( function() {
             that.fireEnemy(that.gliders, Vortex.gliderSpeed);
-        }, 1000);
+        }, Vortex.firstGliderSpawn);
         
         // Set a timer to fire off the first butterfly
         setTimeout( function() {
             that.fireEnemy(that.butterflies, Vortex.butterflySpeed);
-        }, 2000);
+        }, Vortex.firstButterflySpawn);
         
         // Set a timer to have a random butterfly shoot
         setTimeout( function() {
@@ -243,6 +260,9 @@ PhaserGame.prototype = {
         if (this.debug) {
             this.updateDebugText();
         }
+        
+        // Update score text
+        this.scoreText.text = this.score;
         
         // Read mouse pointer if on desktop and virtual gamepad if not
         if (Phaser.Device.desktop) {
@@ -270,16 +290,15 @@ PhaserGame.prototype = {
         }
         
         // Collision detection
-        game.physics.arcade.overlap(this.bullets,
-                                    this.gliders, 
-                                    this.enemyHitHandler,
-                                    null,
-                                    this);
-        game.physics.arcade.overlap(this.bullets,
-                                    this.butterflies, 
-                                    this.enemyHitHandler,
-                                    null,
-                                    this);
+        game.physics.arcade.overlap(this.bullets, this.gliders,
+            function(bullet, enemy) {
+                this.enemyHitHandler(bullet, enemy, Vortex.gliderPoints, this);
+            }, null, this);
+        game.physics.arcade.overlap(this.bullets, this.butterflies,
+            function(bullet, enemy) {
+                this.enemyHitHandler(bullet, enemy, Vortex.butterflyPoints, 
+                                                                        this);
+            }, null, this);
         game.physics.arcade.overlap(this.bullets,
                                     this.enemyBullets,
                                     this.bulletHitHandler,
@@ -316,11 +335,15 @@ PhaserGame.prototype = {
             enemy.fire(enemy, speed);
         }
         
+        // Decrement spawn rate down to a certain level
+        enemies.nextSpawn = Phaser.Math.max((enemies.nextSpawn - 
+            Vortex.spawnDelayDecrement), Vortex.minSpawnRate);
+        
         // Set another timer to fire off the next enemy
         var that = this;
         setTimeout( function() {
             that.fireEnemy(enemies, speed);
-        }, 2000);
+        }, enemies.nextSpawn);
     },
     
     enemyShoot: function(enemies, bullets, speed) {
@@ -352,13 +375,15 @@ PhaserGame.prototype = {
         }, 2000);
     },
     
-    enemyHitHandler: function(bullet, enemy) {
+    enemyHitHandler: function(bullet, enemy, points, context) {
         
         // When a bullet hits an enemy, kill them both
         bullet.kill();
         enemy.kill();
         
-        console.log("Enemy hit");
+        // Update score
+        context.score = Phaser.Math.min(context.score + points, 
+                                                        Vortex.maxPoints);
     },
     
     bulletHitHandler: function(bullet, enemyBullet) {
@@ -366,8 +391,6 @@ PhaserGame.prototype = {
         // This is what it's like when bullets collide
         bullet.kill();
         enemyBullet.kill();
-        
-        console.log("Bullet hit");
     },
     
     playerHitHandler: function(player, enemyBullet) {
@@ -391,6 +414,7 @@ PhaserGame.prototype = {
         if (owner.lives === 0) {
             console.log("You're dead, sucka");
             owner.lives = 0;
+            owner.score = 0;
             game.state.start('Game');
             return;
         };
