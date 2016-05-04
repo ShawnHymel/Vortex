@@ -10,22 +10,22 @@ var game = new Phaser.Game(500, 500, Phaser.CANVAS);
 
 // Game object to hold parameters
 var Vortex = {
-    debug: false,
-    center: new Phaser.Point(250, 200),
-    lives: 3,
-    playerDistance: 157,
-    bulletSpeed: -0.008,
-    enemyBulletSpeed: 0.004,
-    maxBullets: 5,
-    maxEnemyBullets: 5,
-    fireRate: 100,
-    maxGliders: 16,
-    maxButterflies: 16,
-    gliderSpeed: 0.002,
-    butterflySpeed: 0.001,
-    gliderPoints: 100,
-    butterflyPoints: 100,
-    maxPoints: 999900,
+    debug: false,               // Show debug info on screen (virtual gamepad)
+    center: new Phaser.Point(250, 200), // Origin point of the vortex
+    lives: 3,                   // Number of extra lives (n + 1 tries)
+    playerDistance: 157,        // Distance of player from center of vortex
+    bulletSpeed: -0.008,        // How fast player's bullets travel
+    enemyBulletSpeed: 0.004,    // How fast enemies' bullets travel
+    maxBullets: 5,              // Maximum player bullets on screen at once
+    maxEnemyBullets: 5,         // Maximum enemy bullets on screen at once
+    fireRate: 100,              // Delay (ms) between player bullets
+    maxGliders: 16,             // Maximum Glider enemies on screen at once
+    maxButterflies: 16,         // Maximum Butterfly enemies on screen at once
+    gliderSpeed: 0.002,         // Speed Gliders move to edge of vortex
+    butterflySpeed: 0.001,      // Speed Butterflies move to edge of vortex
+    gliderPoints: 100,          // Shooting a Glider earns this many points
+    butterflyPoints: 100,       // Shooting a Butterfly earns this many points
+    maxPoints: 999900,          // Maximum points a player can earn (good luck!)
     firstGliderSpawn: 2000,     // Tims (ms) to spawn first Glider
     firstButterflySpawn: 10000, // Time (ms) to spawn first Butterfly
     initialSpawnRate: 2000,     // Time (ms) to continually spawn enemies
@@ -38,20 +38,26 @@ var Vortex = {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Add the Flyer class constructor to the game state's prototype
-var Flyer = function(game, key, onDeathHandler, context = null) {
+var Flyer = function(game, key, onDeathHandler, context) {
     
+    // Set default parameters
+    if (context === undefined) {
+        context = null;
+    }
+    
+    // Flyer inherits from Sprite
     Phaser.Sprite.call(this, game, 0, 0, key);
     
+    // Set members
     this.owner = context;
     this.onDeathHandler = onDeathHandler;
-    
-    this.anchor.set(0.5);
-    
     this.checkWorldBounds = true;
     this.outOfBoundsKill = true;
     this.exists = false;
-    
     this.scaleSpeed = 0;
+    
+    // Flyer position should always be referenced from center of sprite
+    this.anchor.set(0.5);
 };
 
 // Inherit properties from Sprite class
@@ -60,6 +66,8 @@ Flyer.prototype.constructor = Flyer
 
 // Fire method
 Flyer.prototype.fire = function(source, speed) {
+    
+    // Set properties
     this.pivot.x = source.pivot.x;
     this.pivot.y = source.pivot.y;
     this.angle = source.angle;
@@ -67,14 +75,18 @@ Flyer.prototype.fire = function(source, speed) {
     this.scale.x = source.scale.x;
     this.scale.y = source.scale.y;
     
+    // Revive sprite
     this.reset(source.x, source.y);
 };
 
 // Update method
 Flyer.prototype.update = function() {
+    
+    // Update scaling (movement into/out of vortex)
     this.scale.x += this.speed;
     this.scale.y += this.speed;
 
+    // Kill sprite if it reaches either edge of the Vortex
     if ((this.scale.x <= 0.25) || (this.scale.x > 1)) {
         if ((this.alive) && (this.onDeathHandler !== null)) {
             this.onDeathHandler(this.owner);
@@ -88,7 +100,7 @@ Flyer.prototype.update = function() {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Constructor
-var PhaserGame = function() {
+var PhaserGame = function(game) {
     
     // State members
     this.debug = false;
@@ -107,7 +119,6 @@ PhaserGame.prototype = {
         // of the sprite.
         this.load.spritesheet('gamepad', 
             'img/gamepad/gamepad_spritesheet.png', 100, 100);
-        
         this.load.spritesheet('vortex', 'img/the_vortex.png', 300, 300, 2);
         this.load.image('ship', 'img/player.png');
         this.load.image('bullet', 'img/bullet.png');
@@ -121,10 +132,12 @@ PhaserGame.prototype = {
         // Round to nearest pixel to prevent anti-aliasing in CANVAS
         game.renderer.roundPixels = true;
         
+        // Scale so everything fits on the screen
         this.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
 		this.scale.pageAlignHorizontally = true;
 		this.scale.pageAlignVertically = true;
         
+        // Begin the physics!
         game.physics.startSystem(Phaser.Physics.ARCADE);
         
         // Add background
@@ -225,7 +238,7 @@ PhaserGame.prototype = {
         }
         
         // Debug text
-        if (this.debug) {
+        if (Vortex.debug && !Phaser.Device.desktop) {
             var dStyle = {font: '14px Arial', 
                          fill: '#ffffff', 
                          align: 'left', 
@@ -257,7 +270,8 @@ PhaserGame.prototype = {
     
     update: function() {
         
-        if (this.debug) {
+        // Show virtual gamepad debugging text
+        if (Vortex.debug && !Phaser.Device.desktop) {
             this.updateDebugText();
         }
         
@@ -398,10 +412,10 @@ PhaserGame.prototype = {
         // The player gets hit
         enemyBullet.kill();
         
-        this.loseLife();
+        this.loseLife(this);
     },
     
-    loseLife: function(owner = this) {
+    loseLife: function(owner) {
         
         // Flash the Vortex
         owner.vortex.frame = 1;
@@ -409,10 +423,7 @@ PhaserGame.prototype = {
             owner.vortex.frame = 0;
         }, 150);
         
-        console.log("Ouch");
-        
         if (owner.lives === 0) {
-            console.log("You're dead, sucka");
             owner.lives = 0;
             owner.score = 0;
             game.state.start('Game');
@@ -443,10 +454,11 @@ PhaserGame.prototype = {
             (Math.round(this.joystick.properties.rotation * 100) / 100));
         this.pushText.setText("Joystick: " + this.joystick.properties.inUse + 
             "\nButton: " + this.button.isDown);
-    },
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // Add Game State
 ////////////////////////////////////////////////////////////////////////////////
-game.state.add('Game', PhaserGame, true);
+game.state.add('Game', PhaserGame);
+game.state.start('Game');
