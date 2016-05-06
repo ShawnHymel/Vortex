@@ -188,6 +188,16 @@ Vortex.Game.prototype = {
         this.scoreText = this.add.text(450, 35, '0', this.scoreStyle);
         this.scoreText.anchor.set(1, 0);
         
+        // Add sound/mute button
+        this.soundButton = game.add.button(80, 10, 'icon_sound', 
+            this.toggleSound, this);
+        this.soundButton.scale.set(0.6);
+        if (Vortex.soundEnabled) {
+            this.soundButton.frame = 0;
+        } else {
+            this.soundButton.frame = 1;
+        }
+
         // Only add the virtual gamepad if not on desktop
         if (!Phaser.Device.desktop) {
             this.gamepad = this.game.plugins.add(Phaser.Plugin.VirtualGamepad);
@@ -426,6 +436,19 @@ Vortex.Game.prototype = {
         
         // Decrement lives
         owner.lives--;
+    },
+ 
+    toggleSound: function() {
+        
+        // Toggle sound and update icon. Also, pause and play music.
+        Vortex.soundEnabled = !Vortex.soundEnabled;
+        if (Vortex.soundEnabled) {
+            this.soundButton.frame = 0;
+            Vortex.music.resume();
+        } else {
+            this.soundButton.frame = 1;
+            Vortex.music.pause();
+        }
     },
  
     updateDebugText: function() {

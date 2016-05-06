@@ -9,6 +9,9 @@ Vortex.Preloader.prototype = {
         this.load.image('button_start', 'img/button_start.png');
         this.load.image('button_credits', 'img/button_credits.png');
         this.load.image('button_settings', 'img/button_settings.png');
+        
+        // Load sound icons
+        this.load.spritesheet('icon_sound', 'img/icon_sound.png', 48, 48);
     
         // Load game sprites
         this.load.spritesheet('gamepad', 
