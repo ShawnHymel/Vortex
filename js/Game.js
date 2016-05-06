@@ -80,7 +80,9 @@ Vortex.Game = function(game) {
 Vortex.Game.prototype = {
     
     preload: function() {
-        
+        if (Vortex.debugFPS) {
+            game.time.advancedTiming = true;
+        }
     },
     
     create: function() {
@@ -275,6 +277,12 @@ Vortex.Game.prototype = {
                                     this.playerHitHandler,
                                     null,
                                     this);
+    },
+    
+    render: function() {
+        if (Vortex.debugFPS) {
+            game.debug.text("FPS: " + game.time.fps, 2, 14, "#00ff00");
+        }
     },
     
     fireWeapon: function() {

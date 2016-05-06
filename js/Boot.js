@@ -3,6 +3,7 @@ var Vortex = {
 
     // Game parameters
     debug: false,               // Show debug info on screen (virtual gamepad)
+    debugFPS: true,            // Show FPS on screen
     center: new Phaser.Point(250, 200), // Origin point of the vortex
     lives: 3,                   // Number of extra lives (n + 1 tries)
     playerDistance: 157,        // Distance of player from center of vortex
