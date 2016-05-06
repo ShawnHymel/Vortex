@@ -97,6 +97,10 @@ Vortex.Game.prototype = {
         
         // Add the sound effects
         this.soundPlayerFire = game.add.audio('pulse_laser');
+        this.soundPlayerHit = game.add.audio('hit');
+        this.soundEnemyFire = game.add.audio('zap');
+        this.soundEnemyHit = game.add.audio('explosion');
+        this.soundBulletsCancel = game.add.audio('blip');
         
         // Add the hero
         this.player = this.add.sprite(250, 200, 'ship');
@@ -295,7 +299,9 @@ Vortex.Game.prototype = {
             bullet.fire(this.player, Vortex.bulletSpeed);
             
             // Obviously, we need to play a sound
-            this.soundPlayerFire.play();
+            if (Vortex.soundEnabled) {
+                this.soundPlayerFire.play();
+            }
             
             // Set the next time we can fire a bullet
             this.nextFire = game.time.time + Vortex.fireRate;
@@ -343,6 +349,11 @@ Vortex.Game.prototype = {
             bullet.angle = enemy.angle;
             bullet.scale.setTo(enemy.scale);
             bullet.fire(enemy, speed);
+            
+            // Play the requisite sound
+            if (Vortex.soundEnabled) {
+                this.soundEnemyFire.play();
+            }
         }
         
         // Set another timer to shoot again
@@ -358,6 +369,11 @@ Vortex.Game.prototype = {
         bullet.kill();
         enemy.kill();
         
+        // Play the appropriate sound
+        if (Vortex.soundEnabled) {
+            this.soundEnemyHit.play();
+        }
+        
         // Update score
         context.score = Phaser.Math.min(context.score + points, 
                                                         Vortex.maxPoints);
@@ -368,6 +384,11 @@ Vortex.Game.prototype = {
         // This is what it's like when bullets collide
         bullet.kill();
         enemyBullet.kill();
+        
+        // Play the right sound
+        if (Vortex.soundEnabled) {
+            this.soundBulletsCancel.play();
+        }
     },
     
     playerHitHandler: function(player, enemyBullet) {
@@ -385,6 +406,11 @@ Vortex.Game.prototype = {
         setTimeout( function() {
             owner.vortex.frame = 0;
         }, 150);
+        
+        // Play the ouchie sound
+        if (Vortex.soundEnabled) {
+            owner.soundPlayerHit.play();
+        }
         
         if (owner.lives === 0) {
             owner.lives = 0;

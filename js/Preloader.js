@@ -25,6 +25,11 @@ Vortex.Preloader.prototype = {
             'sound/floating_cities.m4a']);
         game.load.audio('pulse_laser', ['sound/pulse_laser.ogg',
             'sound/pulse_laser.m4a']);
+        game.load.audio('explosion', ['sound/explosion.ogg',
+            'sound/explosion.m4a']);
+        game.load.audio('hit', ['sound/hit.ogg', 'sound/hit.m4a']);
+        game.load.audio('zap', ['sound/zap.ogg', 'sound/zap.m4a']);
+        game.load.audio('blip', ['sound/blip.ogg', 'sound/blip.m4a']);
     },
     
     // Go to next state

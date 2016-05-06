@@ -36,7 +36,9 @@ Vortex.Title.prototype = {
         
         // Start playing music
         Vortex.music = game.add.audio('music');
-        Vortex.music.play('', 0, 0.5, true);
+        if (Vortex.soundEnabled) {
+            Vortex.music.play('', 0, 0.5, true);
+        }
     },
     
     startGame: function() {

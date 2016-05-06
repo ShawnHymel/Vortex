@@ -26,7 +26,8 @@ var Vortex = {
     minSpawnRate: 300,          // Minimum time (ms) between spawns
     
     // Global variables
-    music: null
+    music: null,
+    soundEnabled: false
 };
 
 // Boot state - loads first
