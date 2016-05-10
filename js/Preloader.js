@@ -17,6 +17,7 @@ Vortex.Preloader.prototype = {
         this.load.spritesheet('gamepad', 
             'img/gamepad/gamepad_spritesheet.png', 100, 100);
         this.load.spritesheet('vortex', 'img/the_vortex.png', 300, 300, 2);
+        this.load.spritesheet('explosion', 'img/explosion.png', 50, 50, 4);
         this.load.image('ship', 'img/player.png');
         this.load.image('bullet', 'img/bullet.png');
         this.load.image('glider', 'img/glider.png');

@@ -374,10 +374,24 @@ Vortex.Game.prototype = {
     },
     
     enemyHitHandler: function(bullet, enemy, points, context) {
+    
+        // Create the explosion animation at the site of the enemy
+        var explosion = game.add.sprite(this.center.x, this.center.y,
+            'explosion');
+        explosion.anchor.set(0.5);
+        explosion.pivot.x = enemy.pivot.x;
+        explosion.pivot.y = enemy.pivot.y;
+        explosion.angle = enemy.angle;
+        explosion.scale.x = enemy.scale.x;
+        explosion.scale.y = enemy.scale.y;
         
         // When a bullet hits an enemy, kill them both
         bullet.kill();
         enemy.kill();
+        
+        // Play the explosion animation
+        explosion.animations.add('explode', [0, 1, 2, 3, 2, 1, 0]);
+        explosion.animations.play('explode', 30, false, true);
         
         // Play the appropriate sound
         if (Vortex.soundEnabled) {
