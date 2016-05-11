@@ -74,6 +74,7 @@ Vortex.Game = function(game) {
     this.nextFire = 0;
     this.score = 0;
     this.soundPlayerFire = null;
+    this.nextDifficultyIncrease = 0;
 };
 
 // Prototype
@@ -135,7 +136,8 @@ Vortex.Game.prototype = {
         this.gliders.setAll('pivot.x', -150);
         this.gliders.setAll('angle', 0);
         this.gliders.setAll('alive', false);
-        this.gliders.nextSpawn = Vortex.initialSpawnRate;
+        this.gliders.nextSpawn = game.time.time + Vortex.firstGliderSpawn;
+        this.gliders.spawnInterval = Vortex.initialSpawnRate;
         
         // Create our group of butterfly enemies
         this.butterflies = game.add.group();
@@ -152,7 +154,10 @@ Vortex.Game.prototype = {
         this.butterflies.setAll('pivot.x', -150);
         this.butterflies.setAll('angle', 0);
         this.butterflies.setAll('alive', false);
-        this.butterflies.nextSpawn = Vortex.initialSpawnRate;
+        this.butterflies.nextSpawn = game.time.time + 
+            Vortex.firstButterflySpawn;
+        this.butterflies.spawnInterval = Vortex.initialSpawnRate;
+        this.butterflies.nextShoot = game.time.time + Vortex.butterflyShootRate;
         
         // Create our group of enemy bullets
         this.enemyBullets = game.add.group();
@@ -184,8 +189,11 @@ Vortex.Game.prototype = {
                      
         // Add lives and points text
         this.add.text(10, 10, 'Lives', this.style);
-        this.add.text(450, 10, 'Score', this.style).anchor.set(1, 0);
-        this.scoreText = this.add.text(450, 35, '0', this.scoreStyle);
+        this.add.text(490, 10, 'High Score', this.style).anchor.set(1, 0);
+        this.add.text(490, 35, Vortex.highscore, 
+            this.scoreStyle).anchor.set(1, 0);
+        this.add.text(490, 60, 'Score', this.style).anchor.set(1, 0);
+        this.scoreText = this.add.text(490, 85, '99999', this.scoreStyle);
         this.scoreText.anchor.set(1, 0);
         
         // Add sound/mute button
@@ -217,23 +225,8 @@ Vortex.Game.prototype = {
             this.pushText = this.add.text(380, 20, '', dStyle);
         }
         
-        // Set a timer to fire off the first glider
-        var that = this;
-        setTimeout( function() {
-            that.fireEnemy(that.gliders, Vortex.gliderSpeed);
-        }, Vortex.firstGliderSpawn);
-        
-        // Set a timer to fire off the first butterfly
-        setTimeout( function() {
-            that.fireEnemy(that.butterflies, Vortex.butterflySpeed);
-        }, Vortex.firstButterflySpawn);
-        
-        // Set a timer to have a random butterfly shoot
-        setTimeout( function() {
-            that.enemyShoot(that.butterflies, 
-                            that.enemyBullets, 
-                            Vortex.enemyBulletSpeed);
-        }, 1000);
+        // Set a timer to increase difficulty at intervals
+        this.nextDifficultyIncrease = game.time.time + Vortex.difficultyIncRate;
     },
     
     update: function() {
@@ -271,15 +264,59 @@ Vortex.Game.prototype = {
             }
         }
         
+        // Spawn Gliders
+        if (game.time.time > this.gliders.nextSpawn) {
+            this.spawnEnemy(this.gliders, Vortex.gliderSpeed);
+            this.gliders.nextSpawn = game.time.time + 
+                this.gliders.spawnInterval;
+        }
+        
+        // Spawn Butterflies
+        if (game.time.time > this.butterflies.nextSpawn) {
+            this.spawnEnemy(this.butterflies, Vortex.butterflySpeed);
+            this.butterflies.nextSpawn = game.time.time + 
+                this.butterflies.spawnInterval;
+        }
+        
+        // Have the Butterflies shoot
+        if (game.time.time > this.butterflies.nextShoot) {
+            this.enemyShoot(this.butterflies, this.enemyBullets, 
+                Vortex.enemyBulletSpeed);
+            this.butterflies.nextShoot = game.time.time + 
+                Vortex.butterflyShootRate;
+        }
+        
+        // Increase difficulty at intervals
+        if (game.time.time > this.nextDifficultyIncrease) {
+            this.gliders.spawnInterval = Phaser.Math.max(
+                (this.gliders.spawnInterval - Vortex.spawnDelayDecrement),
+                Vortex.minSpawnRate);
+            this.butterflies.spawnInterval = Phaser.Math.max(
+                (this.butterflies.spawnInterval - Vortex.spawnDelayDecrement),
+                Vortex.minSpawnRate);
+                
+            this.nextDifficultyIncrease = game.time.time + 
+                Vortex.difficultyIncRate;
+        }
+        
         // Collision detection
         game.physics.arcade.overlap(this.bullets, this.gliders,
             function(bullet, enemy) {
-                this.enemyHitHandler(bullet, enemy, Vortex.gliderPoints, this);
+                var scaledPoints = Math.round((1 - enemy.scale.x) * 
+                    Vortex.gliderPoints);
+                this.enemyHitHandler(bullet, 
+                                     enemy, 
+                                     scaledPoints, 
+                                     this);
             }, null, this);
         game.physics.arcade.overlap(this.bullets, this.butterflies,
             function(bullet, enemy) {
-                this.enemyHitHandler(bullet, enemy, Vortex.butterflyPoints, 
-                                                                        this);
+                var scaledPoints = Math.round((1 - enemy.scale.x) * 
+                    Vortex.butterflyPoints);
+                this.enemyHitHandler(bullet, 
+                                     enemy, 
+                                     scaledPoints,
+                                     this);
             }, null, this);
         game.physics.arcade.overlap(this.bullets,
                                     this.enemyBullets,
@@ -305,7 +342,6 @@ Vortex.Game.prototype = {
         if ((this.bullets.countDead() > 0) && 
             (game.time.time > this.nextFire)) {
             var bullet = this.bullets.getFirstDead();
-            bullet.scale.setTo(1);
             bullet.fire(this.player, Vortex.bulletSpeed);
             
             // Obviously, we need to play a sound
@@ -318,7 +354,7 @@ Vortex.Game.prototype = {
         }
     },
     
-    fireEnemy: function(enemies, speed) {
+    spawnEnemy: function(enemies, speed) {
         
         // If we haven't reached max enemies, fire in random direction
         if (enemies.countDead() > 0) {
@@ -327,16 +363,6 @@ Vortex.Game.prototype = {
             enemy.scale.setTo(0.25);
             enemy.fire(enemy, speed);
         }
-        
-        // Decrement spawn rate down to a certain level
-        enemies.nextSpawn = Phaser.Math.max((enemies.nextSpawn - 
-            Vortex.spawnDelayDecrement), Vortex.minSpawnRate);
-        
-        // Set another timer to fire off the next enemy
-        var that = this;
-        setTimeout( function() {
-            that.fireEnemy(enemies, speed);
-        }, enemies.nextSpawn);
     },
     
     enemyShoot: function(enemies, bullets, speed) {
@@ -365,15 +391,15 @@ Vortex.Game.prototype = {
                 this.soundEnemyFire.play();
             }
         }
-        
-        // Set another timer to shoot again
-        var that = this;
-        setTimeout( function() {
-            that.enemyShoot(enemies, bullets, speed);
-        }, 2000);
     },
     
     enemyHitHandler: function(bullet, enemy, points, context) {
+        
+        // If the bullet's scale is still 1, ignore the collision. This fixes a
+        // bug where enemies would get hit before they even spawned
+        if (bullet.scale.x === 1) {
+            return;
+        }
     
         // Create the explosion animation at the site of the enemy
         var explosion = game.add.sprite(this.center.x, this.center.y,
@@ -436,10 +462,12 @@ Vortex.Game.prototype = {
             owner.soundPlayerHit.play();
         }
         
+        // Game over, man
         if (owner.lives === 0) {
+            storageAPI.setHighscore('Vortex-highscore', owner.score);
             owner.lives = 0;
             owner.score = 0;
-            game.state.start('Game');
+            game.state.start('Title');
             return;
         };
         

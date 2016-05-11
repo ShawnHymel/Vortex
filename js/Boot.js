@@ -18,16 +18,20 @@ var Vortex = {
     butterflySpeed: 0.001,      // Speed Butterflies move to edge of vortex
     gliderPoints: 100,          // Shooting a Glider earns this many points
     butterflyPoints: 100,       // Shooting a Butterfly earns this many points
-    maxPoints: 999900,          // Maximum points a player can earn (good luck!)
+    maxPoints: 999999,          // Maximum points a player can earn (good luck!)
     firstGliderSpawn: 2000,     // Tims (ms) to spawn first Glider
     firstButterflySpawn: 10000, // Time (ms) to spawn first Butterfly
-    initialSpawnRate: 2000,     // Time (ms) to continually spawn enemies
-    spawnDelayDecrement: 20,    // Time (ms) decrease between enemy spawns
+    initialSpawnRate: 3000,     // Time (ms) to continually spawn enemies
+    difficultyIncRate: 3000,    // Time (ms) between spawn delay decrements
+    spawnDelayDecrement: 100,   // Time (ms) decrease between enemy spawns
     minSpawnRate: 300,          // Minimum time (ms) between spawns
+    butterflyShootRate: 2000,   // Time (ms) between shots from Butterflies
     
     // Global variables
     music: null,
-    soundEnabled: true
+    soundEnabled: true,
+    score: 0,
+    highscore: 0
 };
 
 // Boot state - loads first

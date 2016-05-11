@@ -30,6 +30,23 @@ Vortex.Title.prototype = {
         startButton.scale.set(0.5);
         creditsButton.scale.set(0.5);
         
+        // Get the stored high score
+        storageAPI.initUnset('Vortex-highscore', 0);
+        Vortex.highscore = storageAPI.get('Vortex-highscore') || 0;
+        
+        // Display "high score"
+        style = {font: '24px Helvetica',
+                 fill: '#ffffff',
+                 align: 'left'};
+        this.add.text(490, 10, 'High Score', style).anchor.set(1, 0); 
+
+        // Display the high score
+        style = {font: '24px Courier',
+                 fill: '#ffffff',
+                 align: 'right'};
+        this.add.text(490, 35, Vortex.highscore, style).anchor.set(1, 0);
+        
+        
         // Start playing music
         Vortex.music = game.add.audio('music');
         if (Vortex.soundEnabled) {
