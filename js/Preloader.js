@@ -5,10 +5,13 @@ Vortex.Preloader.prototype = {
     // Preload the game assets
     preload: function() {
         
-        // Load title sheet sprites
+        // Load title screen sprites
         this.load.image('button_start', 'img/button_start.png');
         this.load.image('button_credits', 'img/button_credits.png');
         this.load.image('button_settings', 'img/button_settings.png');
+        
+        // Load credits screen sprites
+        this.load.image('button_return', 'img/button_return.png');
         
         // Load sound icons
         this.load.spritesheet('icon_sound', 'img/icon_sound.png', 48, 48);

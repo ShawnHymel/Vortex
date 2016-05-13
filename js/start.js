@@ -14,6 +14,7 @@ var states = {
     'Boot': Vortex.Boot,
     'Preloader': Vortex.Preloader,
     'Title': Vortex.Title,
+    'Credits': Vortex.Credits,
     'Game': Vortex.Game
 };
 

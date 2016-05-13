@@ -47,17 +47,23 @@ Vortex.Title.prototype = {
         this.add.text(490, 35, Vortex.highscore, style).anchor.set(1, 0);
         
         
-        // Start playing music
-        Vortex.music = game.add.audio('music');
-        if (Vortex.soundEnabled) {
-            Vortex.music.play('', 0, 0.5, true);
+        // Start playing music (if it isn't already)
+        if (Vortex.music === null) {
+            Vortex.music = game.add.audio('music');
+            if (Vortex.soundEnabled) {
+                Vortex.music.play('', 0, 0.5, true);
+            }
         }
         
         // Add sound/mute button
         this.soundButton = game.add.button(80, 10, 'icon_sound', 
             this.toggleSound, this);
         this.soundButton.scale.set(0.6);
-        this.soundButton.frame = 0;
+        if (Vortex.soundEnabled) {
+            this.soundButton.frame = 0;
+        } else {
+            this.soundButton.frame = 1;
+        }
     },
     
     startGame: function() {
@@ -65,7 +71,7 @@ Vortex.Title.prototype = {
     },
     
     showCredits: function() {
-        
+        game.state.start('Credits');
     },
     
     toggleSound: function() {
