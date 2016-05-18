@@ -9,6 +9,8 @@ Use your mouse to control the ship and click to shoot. If you are on mobile, a c
 
 Your objective is to get the high score. There is no end.
 
+The game is playable here: [http://shawnhymel.github.io/Vortex/](http://shawnhymel.github.io/Vortex/)
+
 Version History
 ---------------
 
